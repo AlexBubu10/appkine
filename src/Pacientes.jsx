@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { es } from 'date-fns/locale';
 import { Box, Button, TextField, Typography, Paper, Tabs, Tab, List, ListItem, ListItemText, IconButton } from '@mui/material';
+import Dialog from '@mui/material/Dialog';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
@@ -7,7 +14,7 @@ const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sába
 
 function PacienteForm({ onAddPaciente }) {
   const [form, setForm] = useState({
-    nombre: '', apellido: '', direccion: '', telefono: '', dni: '', obraSocial: '', sesiones: '', fechaNacimiento: ''
+    nombre: '', apellido: '', direccion: '', telefono: '', dni: '', obraSocial: '', numeroObraSocial: '', sesiones: '', fechaNacimiento: ''
   });
 
   const handleChange = e => {
@@ -39,6 +46,7 @@ function PacienteForm({ onAddPaciente }) {
         <TextField label="DNI" name="dni" value={form.dni} onChange={handleChange} sx={{ flex: 1, minWidth: 180 }} />
         <TextField label="Fecha de Nacimiento" name="fechaNacimiento" type="date" value={form.fechaNacimiento} onChange={handleChange} InputLabelProps={{ shrink: true }} sx={{ flex: 1, minWidth: 180 }} />
         <TextField label="Obra Social" name="obraSocial" value={form.obraSocial} onChange={handleChange} sx={{ flex: 1, minWidth: 180 }} />
+        <TextField label="Número de obra social" name="numeroObraSocial" value={form.numeroObraSocial} onChange={handleChange} sx={{ flex: 1, minWidth: 180 }} />
         <TextField label="Cantidad de Sesiones" name="sesiones" value={form.sesiones} onChange={handleChange} type="number" sx={{ flex: 1, minWidth: 180 }} />
         <Button type="submit" variant="contained" sx={{ height: 56, alignSelf: 'center', px: 4 }}>Agregar</Button>
       </Box>
@@ -47,6 +55,8 @@ function PacienteForm({ onAddPaciente }) {
 }
 
 function PacienteDetalle({ paciente, onUpdate, onDelete }) {
+  // Estado para el modal de imagen
+  const [imagenModal, setImagenModal] = useState(null);
   // Eliminar archivo individual
   const handleDeleteArchivo = (index) => {
     const nuevosArchivos = archivos.filter((_, i) => i !== index);
@@ -100,6 +110,7 @@ function PacienteDetalle({ paciente, onUpdate, onDelete }) {
     dni: paciente.dni,
     fechaNacimiento: paciente.fechaNacimiento || '',
     obraSocial: paciente.obraSocial,
+    numeroObraSocial: paciente.numeroObraSocial || '',
     sesiones: paciente.sesiones
   });
   const [historial, setHistorial] = useState(paciente.historial || []);
@@ -180,17 +191,28 @@ function PacienteDetalle({ paciente, onUpdate, onDelete }) {
             ) : (
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                 {archivos.map((a, idx) => (
-                  <Box key={idx} sx={{ width: 140, bgcolor: '#fff', borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', p: 1, position: 'relative' }}>
+                  <Box key={idx} sx={{ width: 140, bgcolor: '#fff', borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', p: 1, position: 'relative', cursor: 'pointer' }} onClick={() => setImagenModal(a)}>
                     <img src={a.url} alt={a.descripcion} style={{ width: '100%', borderRadius: 4, marginBottom: 4 }} />
                     <Typography variant="caption" color="text.secondary">{a.fecha}</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>{a.descripcion}</Typography>
-                    <IconButton size="small" color="error" sx={{ position: 'absolute', top: 4, right: 4 }} onClick={() => handleDeleteArchivo(idx)}>
+                    <IconButton size="small" color="error" sx={{ position: 'absolute', top: 4, right: 4 }} onClick={e => { e.stopPropagation(); handleDeleteArchivo(idx); }}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Box>
                 ))}
               </Box>
             )}
+            {/* Modal para mostrar imagen grande */}
+            <Dialog open={!!imagenModal} onClose={() => setImagenModal(null)} maxWidth="md">
+              {imagenModal && (
+                <>
+                  <DialogTitle>{imagenModal.descripcion}</DialogTitle>
+                  <DialogContent sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#222' }}>
+                    <img src={imagenModal.url} alt={imagenModal.descripcion} style={{ maxWidth: '90vw', maxHeight: '80vh', borderRadius: 8 }} />
+                  </DialogContent>
+                </>
+              )}
+            </Dialog>
           </Box>
         )}
       </Box>
@@ -205,6 +227,7 @@ function PacienteDetalle({ paciente, onUpdate, onDelete }) {
               <TextField label="DNI" name="dni" value={datos.dni} onChange={e => setDatos({ ...datos, dni: e.target.value })} />
               <TextField label="Fecha de Nacimiento" name="fechaNacimiento" type="date" value={datos.fechaNacimiento} onChange={e => setDatos({ ...datos, fechaNacimiento: e.target.value })} InputLabelProps={{ shrink: true }} />
               <TextField label="Obra Social" name="obraSocial" value={datos.obraSocial} onChange={e => setDatos({ ...datos, obraSocial: e.target.value })} />
+              <TextField label="Número de obra social" name="numeroObraSocial" value={datos.numeroObraSocial} onChange={e => setDatos({ ...datos, numeroObraSocial: e.target.value })} />
               <TextField label="Cantidad de Sesiones" name="sesiones" value={datos.sesiones} onChange={e => setDatos({ ...datos, sesiones: e.target.value })} type="number" />
               <Button variant="contained" onClick={() => {
                 setEditando(false);
@@ -217,25 +240,78 @@ function PacienteDetalle({ paciente, onUpdate, onDelete }) {
           <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto" sx={{ mt: 2 }}>
             {diasSemana.map((dia, idx) => <Tab key={dia} label={dia} />)}
           </Tabs>
-          <Box sx={{ mt: 2 }}>
+          <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+            <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
+              <DatePicker
+                label={`Fecha para ${diasSemana[tab]}`}
+                value={plan[`${diasSemana[tab]}_fecha`] ? new Date(plan[`${diasSemana[tab]}_fecha`]) : new Date()}
+                onChange={date => {
+                  if (date) {
+                    const jsDay = date.getDay();
+                    const mapDias = [6, 0, 1, 2, 3, 4, 5];
+                    const diaIdx = mapDias[jsDay];
+                    setTab(diaIdx);
+                    // Guardar en formato ISO para el DatePicker
+                    const isoDate = date.toISOString().slice(0, 10);
+                    const newPlan = { ...plan, [`${diasSemana[diaIdx]}_fecha`]: isoDate };
+                    setPlan(newPlan);
+                    onUpdate({ ...paciente, planificacion: newPlan, observaciones: obs, historial });
+                  }
+                }}
+                inputFormat="dd/MM/yyyy"
+                renderInput={(params) => <TextField {...params} sx={{ minWidth: 180 }} />}
+                key={tab}
+              />
+            </LocalizationProvider>
             <TextField
               label={`Planificación para ${diasSemana[tab]}`}
               multiline
               fullWidth
               minRows={2}
               value={plan[diasSemana[tab]] || ''}
-              onChange={e => handlePlanChange(diasSemana[tab], e.target.value)}
+              onChange={e => {
+                const newPlan = { ...plan, [diasSemana[tab]]: e.target.value };
+                setPlan(newPlan);
+                onUpdate({ ...paciente, planificacion: newPlan, observaciones: obs, historial });
+              }}
+              sx={{ flex: 1 }}
             />
           </Box>
-          <Box sx={{ mt: 2 }}>
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Fecha seleccionada: {plan[`${diasSemana[tab]}_fecha`] ? new Date(plan[`${diasSemana[tab]}_fecha`]).toLocaleDateString('es-ES') : new Date().toLocaleDateString('es-ES')}
+            </Typography>
+          </Box>
+          <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'flex-start' }}>
             <TextField
               label="Observaciones generales"
               multiline
               fullWidth
               minRows={2}
               value={obs}
-              onChange={handleObsChange}
+              onChange={e => setObs(e.target.value)}
+              sx={{ flex: 1 }}
             />
+            <Button
+              variant="contained"
+              color="primary"
+              sx={{ height: 56, alignSelf: 'flex-start' }}
+              onClick={() => {
+                const nuevoRegistro = {
+                  fecha: new Date().toLocaleString(),
+                  tipo: 'observacion',
+                  valor: obs
+                };
+                const nuevoHistorial = [...historial, nuevoRegistro];
+                setHistorial(nuevoHistorial);
+                onUpdate({ ...paciente, planificacion: plan, observaciones: obs, historial: nuevoHistorial });
+                setObs(""); // Limpiar el cuadro de observación
+                setMensajeDetalle('Observaciones guardadas');
+                setTimeout(() => setMensajeDetalle(''), 2000);
+              }}
+            >
+              Guardar
+            </Button>
           </Box>
         </>
       )}
@@ -315,7 +391,14 @@ export default function Pacientes() {
               {pacientesFiltrados.map((p, idx) => {
                 return (
                   <ListItem button key={p.id} onClick={() => setSeleccionadoDni(p.id)} sx={{ borderRadius: 2, mb: 1, transition: 'box-shadow 0.3s, transform 0.2s', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', '&:hover': { transform: 'scale(1.02)', boxShadow: '0 4px 16px rgba(0,0,0,0.10)' } }}>
-                    <ListItemText primary={<span style={{ fontWeight: 500 }}>{p.nombre} {p.apellido}</span>} secondary={`Sesiones: ${p.sesiones}`} />
+                    <ListItemText
+                      primary={<span style={{ fontWeight: 500 }}>{p.nombre} {p.apellido}</span>}
+                      secondary={<>
+                        {`Sesiones: ${p.sesiones}`}
+                        {p.obraSocial && <><br />{`Obra Social: ${p.obraSocial}`}</>}
+                        {p.numeroObraSocial && <><br />{`N° Obra Social: ${p.numeroObraSocial}`}</>}
+                      </>}
+                    />
                   </ListItem>
                 );
               })}
@@ -327,6 +410,18 @@ export default function Pacientes() {
           <Button variant="outlined" color="primary" sx={{ mb: 2, transition: 'background 0.3s' }} onClick={() => setSeleccionadoDni(null)}>
             ← Volver al listado
           </Button>
+          {/* Mostrar datos del paciente en el detalle */}
+          <Box sx={{ mb: 2, p: 2, bgcolor: '#f7f7f7', borderRadius: 2 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Datos del paciente</Typography>
+            <Typography variant="body2"><b>Nombre:</b> {seleccionado.nombre} {seleccionado.apellido}</Typography>
+            <Typography variant="body2"><b>DNI:</b> {seleccionado.dni}</Typography>
+            <Typography variant="body2"><b>Dirección:</b> {seleccionado.direccion}</Typography>
+            <Typography variant="body2"><b>Teléfono:</b> {seleccionado.telefono}</Typography>
+            <Typography variant="body2"><b>Fecha de nacimiento:</b> {seleccionado.fechaNacimiento}</Typography>
+            <Typography variant="body2"><b>Obra Social:</b> {seleccionado.obraSocial}</Typography>
+            {seleccionado.numeroObraSocial && <Typography variant="body2"><b>N° Obra Social:</b> {seleccionado.numeroObraSocial}</Typography>}
+            <Typography variant="body2"><b>Cantidad de sesiones:</b> {seleccionado.sesiones}</Typography>
+          </Box>
           <PacienteDetalle paciente={seleccionado} onUpdate={handleUpdatePaciente} onDelete={() => handleDeletePaciente(seleccionado.id)} />
         </>
       )}
