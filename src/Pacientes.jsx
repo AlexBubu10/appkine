@@ -421,6 +421,19 @@ export default function Pacientes() {
             <Typography variant="body2"><b>Obra Social:</b> {seleccionado.obraSocial}</Typography>
             {seleccionado.numeroObraSocial && <Typography variant="body2"><b>N° Obra Social:</b> {seleccionado.numeroObraSocial}</Typography>}
             <Typography variant="body2"><b>Cantidad de sesiones:</b> {seleccionado.sesiones}</Typography>
+            <Button
+              variant="outlined"
+              color="secondary"
+              size="small"
+              sx={{ ml: 2, mb: 1 }}
+              onClick={() => {
+                if (seleccionado.sesiones > 0) {
+                  handleUpdatePaciente({ ...seleccionado, sesiones: Number(seleccionado.sesiones) - 1 });
+                }
+              }}
+            >
+              Descontar sesión
+            </Button>
           </Box>
           <PacienteDetalle paciente={seleccionado} onUpdate={handleUpdatePaciente} onDelete={() => handleDeletePaciente(seleccionado.id)} />
         </>
