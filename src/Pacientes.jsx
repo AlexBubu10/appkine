@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { db } from './firebaseConfig';
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -240,7 +242,7 @@ function PacienteDetalle({ paciente, onUpdate, onDelete }) {
           <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto" sx={{ mt: 2 }}>
             {diasSemana.map((dia, idx) => <Tab key={dia} label={dia} />)}
           </Tabs>
-          <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Box sx={{ mt: 2 }}>
             <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
               <DatePicker
                 label={`Fecha para ${diasSemana[tab]}`}
@@ -259,10 +261,11 @@ function PacienteDetalle({ paciente, onUpdate, onDelete }) {
                   }
                 }}
                 inputFormat="dd/MM/yyyy"
-                renderInput={(params) => <TextField {...params} sx={{ minWidth: 180 }} />}
+                renderInput={(params) => <TextField {...params} sx={{ minWidth: 180, mb: 2 }} />}
                 key={tab}
               />
             </LocalizationProvider>
+            <Box sx={{ mb: 2 }} />
             <TextField
               label={`Planificación para ${diasSemana[tab]}`}
               multiline
@@ -321,27 +324,49 @@ function PacienteDetalle({ paciente, onUpdate, onDelete }) {
 
 export default function Pacientes() {
   const [pacientes, setPacientes] = useState([]);
+  // Leer pacientes en tiempo real desde Firestore
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'pacientes'), (snapshot) => {
+      const lista = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setPacientes(lista);
+    });
+    return () => unsubscribe();
+  }, []);
   const [seleccionadoDni, setSeleccionadoDni] = useState(null);
   const [busqueda, setBusqueda] = useState('');
   const [mensaje, setMensaje] = useState('');
 
-  const handleAddPaciente = paciente => {
-    let id = paciente.dni && !pacientes.some(p => p.dni === paciente.dni) ? paciente.dni : `${Date.now()}-${Math.random()}`;
-    setPacientes(prev => [...prev, { ...paciente, id }]);
-    setMensaje('Paciente agregado correctamente');
-    setTimeout(() => setMensaje(''), 2000);
+  const handleAddPaciente = async paciente => {
+    try {
+      await addDoc(collection(db, 'pacientes'), paciente);
+      setMensaje('Paciente agregado correctamente');
+      setTimeout(() => setMensaje(''), 2000);
+    } catch (e) {
+      setMensaje('Error al agregar paciente');
+    }
   };
 
-  const handleUpdatePaciente = updated => {
-    setPacientes(pacientes.map(p => p.id === updated.id ? updated : p));
-    setSeleccionadoDni(updated.id);
+  const handleUpdatePaciente = async updated => {
+    try {
+      const ref = doc(db, 'pacientes', updated.id);
+      await updateDoc(ref, updated);
+      setSeleccionadoDni(updated.id);
+      setMensaje('Datos actualizados');
+      setTimeout(() => setMensaje(''), 2000);
+    } catch (e) {
+      setMensaje('Error al actualizar');
+    }
   };
 
-  const handleDeletePaciente = id => {
-    setPacientes(prev => prev.filter(p => p.id !== id));
-    setSeleccionadoDni(null);
-    setMensaje('Paciente eliminado');
-    setTimeout(() => setMensaje(''), 2000);
+  const handleDeletePaciente = async id => {
+    try {
+      await deleteDoc(doc(db, 'pacientes', id));
+      setSeleccionadoDni(null);
+      setMensaje('Paciente eliminado');
+      setTimeout(() => setMensaje(''), 2000);
+    } catch (e) {
+      setMensaje('Error al eliminar');
+    }
   };
 
   const seleccionado = pacientes.find(p => p.id === seleccionadoDni);
